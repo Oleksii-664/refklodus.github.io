@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Таблиця рефаунду</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f3f6fa;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #3498db;
+            color: white;
+        }
+        input[type="text"], input[type="number"], input[type="file"] {
+            padding: 5px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        button {
+            padding: 6px 10px;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #219150;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal img {
+            max-width: 80%;
+            max-height: 80%;
+            border-radius: 10px;
+            box-shadow: 0 0 20px black;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Таблиця рефаунду</h1>
+<table id="refundTable">
+    <thead>
+        <tr>
+            <th>Пошта</th>
+            <th>Пароль</th>
+            <th>Телефон</th>
+            <th>Назва профілю</th>
+            <th>Назва товару</th>
+            <th>Ціна товару</th>
+            <th>Ціна прогріву</th>
+            <th>Разом ціна</th>
+            <th>Ціна продажу</th>
+            <th>Товар рефнутий</th>
+            <th>Прогрів рефнутий</th>
+            <th>Прибуток</th>
+            <th>Фото</th>
+            <th>Переглянути</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+<br>
+<button onclick="addRow()">Додати рядок</button>
+
+<div class="modal" id="imageModal" onclick="this.style.display='none'">
+    <img id="modalImage" src="" alt="Фото">
+</div>
+
+<script>
+    function addRow() {
+        const table = document.querySelector("#refundTable tbody");
+        const row = table.insertRow();
+
+        const cells = [
+            `<input type="text">`, // пошта
+            `<input type="text">`, // пароль
+            `<input type="text">`, // телефон
+            `<input type="text">`, // назва профілю
+            `<input type="text">`, // назва товару
+            `<input type="number" oninput="updateProfit(this)">`, // ціна товару
+            `<input type="number" oninput="updateProfit(this)">`, // ціна прогріву
+            `<span class="totalPrice">0</span>`, // разом ціна
+            `<input type="number" oninput="updateProfit(this)">`, // ціна продажу
+            `<input type="checkbox" onchange="updateProfit(this)">`, // товар рефнутий
+            `<input type="checkbox" onchange="updateProfit(this)">`, // прогрів рефнутий
+            `<span class="profit">0</span>`, // прибуток
+            `<input type="file" accept="image/*" onchange="previewImage(this)">`, // фото
+            `<button onclick="viewImage(this)">Переглянути</button>` // переглянути
+        ];
+
+        cells.forEach(cellHTML => {
+            const cell = row.insertCell();
+            cell.innerHTML = cellHTML;
+        });
+    }
+
+    function updateProfit(el) {
+        const row = el.closest("tr");
+        const priceProduct = parseFloat(row.cells[5].querySelector("input").value) || 0;
+        const priceWarmup = parseFloat(row.cells[6].querySelector("input").value) || 0;
+        const salePrice = parseFloat(row.cells[8].querySelector("input").value) || 0;
+        const productRefunded = row.cells[9].querySelector("input").checked;
+        const warmupRefunded = row.cells[10].querySelector("input").checked;
+
+        let totalPrice = priceProduct;
+        if (!warmupRefunded) totalPrice += priceWarmup;
+
+        row.querySelector(".totalPrice").textContent = totalPrice;
+
+        let profit;
+        if (productRefunded) {
+            profit = salePrice;
+        } else {
+            profit = salePrice - totalPrice;
+        }
+
+        row.querySelector(".profit").textContent = profit;
+    }
+
+    function previewImage(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            input.dataset.image = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function viewImage(btn) {
+        const row = btn.closest("tr");
+        const fileInput = row.cells[12].querySelector("input");
+        if (!fileInput.dataset.image) return alert("Спочатку завантажте фото!");
+        document.getElementById("modalImage").src = fileInput.dataset.image;
+        document.getElementById("imageModal").style.display = "flex";
+    }
+</script>
+
+</body>
+</html>
