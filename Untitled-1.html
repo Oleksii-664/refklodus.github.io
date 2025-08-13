@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Таблиця рефаунду</title>
+<style>
+  body { font-family: Arial, sans-serif; background-color: #0f1220; color: #e8ecf1; margin: 0; padding: 20px; }
+  h1 { text-align: center; color: #7c5cff; }
+  table { width: 100%; border-collapse: collapse; margin-top: 20px; background-color: #171a2b; border-radius: 10px; overflow: hidden; }
+  th, td { padding: 10px; text-align: center; border-bottom: 1px solid #2a2d3d; }
+  th { background-color: #1f2235; }
+  input[type="text"], input[type="number"] { width: 100%; padding: 5px; border: none; border-radius: 5px; background-color: #2a2d3d; color: #fff; }
+  input[type="checkbox"] { transform: scale(1.2); }
+  button { padding: 10px 20px; background-color: #7c5cff; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+  button:hover { background-color: #674bdb; }
+  img.preview { max-width: 100px; border-radius: 5px; margin-top: 5px; }
+</style>
+</head>
+<body>
+<h1>Таблиця рефаунду</h1>
+<table id="refundTable">
+  <thead>
+    <tr>
+      <th>Назва профілю</th>
+      <th>Пошта</th>
+      <th>Пароль</th>
+      <th>Телефон</th>
+      <th>Назва товару</th>
+      <th>Ціна товару</th>
+      <th>Ціна прогріву</th>
+      <th>Ціна продажу</th>
+      <th>Рефнутий товар</th>
+      <th>Рефнутий прогрів</th>
+      <th>Зображення</th>
+      <th>Прибуток</th>
+      <th>Дія</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+<button onclick="addRow()">Додати рядок</button>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbweq5JwO0cmtsOxwoPw9kpQibuaS5hblJGaD_jwMKoTs6nsO_kSAqmv4pZBJVHIWoNR/exec";
+let tableBody = document.querySelector('#refundTable tbody');
+
+async function loadData() {
+  let res = await fetch(API_URL);
+  let data = await res.json();
+  tableBody.innerHTML = '';
+  // Пропускаємо перший рядок (заголовки в Google Sheets)
+  data.slice(1).forEach(row => addRow(row));
+}
+
+async function saveData() {
+  let rows = [];
+  // Додаємо заголовки (повинні збігатись з першими в Google Sheets)
+  rows.push(["Назва профілю","Пошта","Пароль","Телефон","Назва товару","Ціна товару","Ціна прогріву","Ціна продажу","Рефнутий товар","Рефнутий прогрів","Зображення","Прибуток"]);
+  tableBody.querySelectorAll('tr').forEach(tr => {
+    let cells = tr.querySelectorAll('input');
+    let row = [];
+    cells.forEach(cell => {
+      if (cell.type === 'checkbox') {
+        row.push(cell.checked ? "TRUE" : "FALSE");
+      } else if (cell.type === 'file') {
+        row.push(cell.dataset.image || "");
+      } else {
+        row.push(cell.value);
+      }
+    });
+    rows.push(row);
+  });
+  await fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify(rows)
+  });
+}
+
+function calcProfit(tr) {
+  let priceProduct = parseFloat(tr.querySelector('.priceProduct').value) || 0;
+  let priceWarmup = parseFloat(tr.querySelector('.priceWarmup').value) || 0;
+  let priceSell = parseFloat(tr.querySelector('.priceSell').value) || 0;
+  let productRefunded = tr.querySelector('.productRefunded').checked;
+  let warmupRefunded = tr.querySelector('.warmupRefunded').checked;
+  let profit = priceSell - (productRefunded ? 0 : priceProduct) - (warmupRefunded ? 0 : priceWarmup);
+  tr.querySelector('.profit').value = profit.toFixed(2);
+  saveData();
+}
+
+function previewImage(input) {
+  let file = input.files[0];
+  if (file) {
+    let reader = new FileReader();
+    reader.onload = function(e) {
+      let img = input.parentElement.querySelector('img');
+      img.src = e.target.result;
+      input.dataset.image = e.target.result;
+      saveData();
+    }
+    reader.readAsDataURL(file);
+  }
+}
+
+function addRow(data = []) {
+  let tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text" value="${data[0] || ''}" oninput="saveData()"></td>
+    <td><input type="text" value="${data[1] || ''}" oninput="saveData()"></td>
+    <td><input type="text" value="${data[2] || ''}" oninput="saveData()"></td>
+    <td><input type="text" value="${data[3] || ''}" oninput="saveData()"></td>
+    <td><input type="text" value="${data[4] || ''}" oninput="saveData()"></td>
+    <td><input type="number" class="priceProduct" value="${data[5] || ''}" oninput="calcProfit(this.closest('tr'))"></td>
+    <td><input type="number" class="priceWarmup" value="${data[6] || ''}" oninput="calcProfit(this.closest('tr'))"></td>
+    <td><input type="number" class="priceSell" value="${data[7] || ''}" oninput="calcProfit(this.closest('tr'))"></td>
+    <td><input type="checkbox" class="productRefunded" ${data[8] === "TRUE" ? 'checked' : ''} onchange="calcProfit(this.closest('tr'))"></td>
+    <td><input type="checkbox" class="warmupRefunded" ${data[9] === "TRUE" ? 'checked' : ''} onchange="calcProfit(this.closest('tr'))"></td>
+    <td>
+      <input type="file" accept="image/*" onchange="previewImage(this)" data-image="${data[10] || ''}">
+      <img class="preview" src="${data[10] || ''}">
+    </td>
+    <td><input type="number" class="profit" value="${data[11] || ''}" readonly></td>
+    <td><button onclick="this.closest('tr').remove(); saveData();">🗑</button></td>
+  `;
+  tableBody.appendChild(tr);
+}
+
+loadData();
+</script>
+</body>
+</html>
